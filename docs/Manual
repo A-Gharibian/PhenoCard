@@ -1,0 +1,348 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage[hidelinks]{hyperref}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{pmboxdraw}
+\usepackage{amsmath}
+\DeclareUnicodeCharacter{251C}{\textSFvi}  % ├
+\DeclareUnicodeCharacter{2500}{\textSFx}   % ─
+\DeclareUnicodeCharacter{2502}{\textSFxi}  % │
+\DeclareUnicodeCharacter{2514}{\textSFii}  % └
+
+\definecolor{eclipseBlue}{RGB}{42,0,255}
+\definecolor{eclipseGreen}{RGB}{63,127,95}
+\definecolor{backcolour}{rgb}{0.98,0.98,0.96}
+
+\lstdefinelanguage{json}{
+    basicstyle=\ttfamily\footnotesize,
+    numbers=left,
+    numberstyle=\tiny,
+    stepnumber=1,
+    numbersep=8pt,
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{backcolour},
+    stringstyle=\color{eclipseGreen},
+    keywordstyle=\color{eclipseBlue},
+    commentstyle=\color{gray}
+}
+
+\title{\textbf{Clinical Cluster Phenotype Card}\\
+\large Schema Specification and Implementation Guide}
+\author{Arootin Gharibian}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document describes the PhenoCard (the \textit{Clinical Cluster Phenotype Card}), a schema for sharing clinical cluster profiles. The schema provides a structured representation for semi-supervised, cluster-derived patient profiles, designed to reproduce feature-subset values and human-in-the-loop feature selection, with class-matching clusters as the unit of evaluation. The cluster feature values, as computable artifacts, can be published with provenance and cluster-label matching metrics, allowing independent nodes to compare and reproduce clusters across heterogeneous datasets in an algorithm-independent, privacy-preserving manner.
+\end{abstract}
+
+\centering{This documentation is licenced under European Union Public Licence v. 1.2}
+\tableofcontents
+
+\newpage
+
+\section{Overview \& Methodology}
+The \textbf{Cluster Phenotype Card} is a schema-driven JSON file designed to standardize sharing complex clinical clusters across federated healthcare networks. By separating the mathematical data payload (Level 1-3 baseline stats and phenotype signatures) from the presentation layer (UI Schema), this repository allows for the output of FAIR-compliant profiles that can be rendered into interactive, clinician-ready dashboards.\\
+The implementation follows a \textit{Define--Validate--Share} pipeline designed to follow FAIR (Findable, Accessible, Interoperable, Reproducible) principles across. While standards such as PMML and ONNX excel at serializing mathematical weights for execution, they lack the clinical semantics required for semi-supervised clustering. Packaging standards such as RO-Crate provide excellent provenance support but lack domain-specific structures for clinical cluster definitions.\\
+The PhenoCard acts as the bridge between these layers: it is a machine-readable JSON-LD document and functions as a specialized RO-Crate combining clinical semantics with a mathematical definition of the clusters. These profiles can be used to create standard RO-Crates focused on \textbf{phenotypic cluster definitions}, \textbf{statistical reproducibility}, and \textbf{computable payloads}.\\
+
+The schema is built around three design principles:
+
+\begin{enumerate}
+    \item \textbf{Reproducibility:} Enforces structured metadata for the algorithmic protocol, explicitly documenting data preprocessing, missingness handling, and the clustering methodology.\\
+    \item \textbf{Concept Interoperability:} Uses standardized concept identifiers to define the features of the cluster. The schema is vocabulary-agnostic: OMOP Athena concept IDs are the reference implementation, but nodes using other vocabularies (e.g.\ SNOMED CT directly, LOINC, or local codes) may supply their mapping convention separately.\\
+    \item \textbf{Privacy-Preserving Distributed Data Mining:} Embeds statistical artifacts (covariance matrices and validity scores) directly into the schema. This enables federated nodes to validate stable clusters mathematically without exposing patient-level data.
+\end{enumerate}
+
+\section{Information Privacy}
+The Cluster Profile Card is explicitly engineered for Privacy-Preserving Data Mining (PPDM).
+The artefact transmits only aggregate statistics and standardized concept codes; no individual patient data or clinical notes are included or permitted. Local ethics review and institutional data governance requirements apply independently of schema compliance.
+
+\subsection{Privacy Guarantees}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{No Row-Level Data:} The schema contains no fields for individual patient records. All values are population-level aggregates.
+
+    \item \textbf{Aggregate Statistics Only:} All metrics (\texttt{n\_count}, \texttt{dist\_mean}, \texttt{covariance\_value}) are computed at the cluster level.
+
+    \item \textbf{Minimum Count Threshold:} The schema enforces \texttt{n\_count}~$\geq$~10 at the cluster level and \texttt{total\_study\_n}~$\geq$~32 at the dataset level. Producers should apply the minimum threshold appropriate for their institutional and jurisdictional requirements before generating a card.
+\end{itemize}
+
+\section{Structure \& Schema Specification}
+
+The schema is a JSON-LD document with strict typing (\texttt{additionalProperties: false} at every level) to ensure that valid cards are computationally reproducible. It is organized into four layers described below.
+
+\subsection{Metadata and Provenance Layer}
+
+\textbf{Purpose:} Governance, lineage, and interoperability.
+
+\begin{itemize}[leftmargin=*]
+    \item Uses standard vocabulary mappings (\texttt{dcat:publisher}, \texttt{dcat:license}, PAV authorship predicates) for linked-data interoperability.
+
+    \item Records the computational run via \texttt{provenance}: timestamps (\texttt{execution\_start\_time}, \texttt{execution\_end\_time}), optional pipeline identifier (\texttt{pipeline\_run\_id}), optional code version (\texttt{git\_commit}), and optional dataset hash (\texttt{data\_version\_hash}).
+
+    \item Links to the upstream cohort definition (\texttt{base\_cohort\_reference}) that defines the baseline study population.
+\end{itemize}
+
+\subsection{Statistical and Distributed Mathematics Layer}
+
+\textbf{Purpose:} Distributed Computability.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Population Scope:} Absolute patient counts (\texttt{n\_count}) and sub-population fractions relative to the profile and the full study.
+
+    \item \textbf{Quality Metrics:} Internal cohesion (e.g.\ Silhouette score), external separation (e.g.\ confusion matrix components), and class label distribution. Metrics are stored as a named list under \texttt{quality\_metrics.metrics}, each carrying a \texttt{metric\_type} classifier.
+
+    \item \textbf{Distributed Payloads:} Embeds pairwise feature covariance matrices (\texttt{covariance\_matrix}) and upstream model feature importance scores (\texttt{covariate\_importance}) to support federated reconstruction of cluster spaces.
+\end{itemize}
+
+\subsection{Phenotype Signature Layer}
+
+\textbf{Purpose:} Machine-executable clinical logic.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Feature Set:} The defining set of clinical variables for the cluster (\texttt{phenotype\_signature.features}), each mapped to a concept identifier.
+
+    \item \textbf{Inclusion Criteria and Distributional Summaries:} Each feature carries both deterministic inclusion rules (e.g.\ \texttt{anchor\_operator: ">="}, \texttt{anchor\_value: 0.6}) and probabilistic distributional parameters (\texttt{dist\_mean}, \texttt{dist\_sd}).
+
+    \item \textbf{Clustering Quality Descriptor (\texttt{clustering\_outcome}):} A four-value enum describing cluster separation and label consistency: \texttt{distinct\_and\_pure}, \texttt{distinct\_but\_mixed}, \texttt{indistinct\_but\_pure}, \texttt{indistinct\_and\_mixed}.
+\end{itemize}
+
+\subsubsection{Algorithmic Protocol (MINIMAR)}
+
+\textbf{Purpose:} Methodological reproducibility.
+
+\begin{itemize}[leftmargin=*]
+    \item Documents the algorithm configuration: method family, base model, hyperparameters, random seed, and software version (\texttt{algorithmic\_config}).
+
+    \item Explicitly defines the data preprocessing pipeline, including missing data strategy and feature scaling method (\texttt{data\_preprocessing}).
+
+    \item Maps the cluster to a human-readable clinical label (\texttt{assigned\_class}) and an optional concept identifier (\texttt{assigned\_concept\_id}) in \texttt{label\_relationship}.
+\end{itemize}
+
+\section{The Integrity Hash}
+
+The optional \texttt{integrity\_hash} field provides a SHA-256 fingerprint of the feature subset. When present, it allows a consuming node to verify that the cluster definition has not been altered in transit. Because JSON objects are inherently unordered, producers \textbf{must} follow a deterministic serialization protocol before hashing (typically sorting \texttt{concept\_id} values and the feature array) to ensure the hash is reproducible across environments. The convention must be documented in the accompanying specification or \texttt{minimar\_reference} file.
+
+Note that \texttt{integrity\_hash} is optional (\texttt{Required: false}). Cards without it are valid; the field is recommended when federated integrity verification is a requirement of the receiving network.
+
+\section{Workflow \& Implementation Guide}
+
+The Cluster PhenoCard is designed to be generated and consumed programmatically.
+
+\subsection{Phase 1: Producer Workflow (Generating the Card)}
+
+\begin{enumerate}
+    \item \textbf{Map Features to Concept Identifiers:} Ensure all feature variables are mapped to concept IDs within the \texttt{phenotype\_signature.features} array. For OMOP networks, use ATHENA concept IDs (SNOMED CT, LOINC, RxNorm). For other networks, document the vocabulary convention in \texttt{minimar\_reference}.
+
+    \item \textbf{Report Methods (MINIMAR):} Populate the \texttt{algorithmic\_config} block with the exact hyperparameters, random seed, and \texttt{data\_preprocessing} strategy used during the run.
+
+    \item \textbf{Calculate Metrics and Artefacts:} Compute \texttt{quality\_metrics} (e.g.\ Silhouette score, confusion matrix components, class distribution counts) and the \texttt{covariance\_matrix} on local data.
+
+    \item \textbf{Sign the Artefact (Optional):} Generate the \texttt{integrity\_hash} (SHA-256) over the canonical feature set to allow downstream verification.
+\end{enumerate}
+
+\subsection{Phase 2: Consumer Workflow (Validating the Card)}
+
+\begin{enumerate}
+    \item \textbf{Resolve Concepts:} Read the \texttt{concept\_id} and \texttt{unit\_concept\_id} values from the producer's feature list and map them to the local vocabulary if needed.
+
+    \item \textbf{Query Local Data:} Extract corresponding patient data from the local dataset, applying the producer's \texttt{data\_preprocessing} strategy as documented in \texttt{algorithmic\_config}. It is possible to filter the local population using the \texttt{dataset\_definition}.
+
+    \item \textbf{Run Clustering Algorithm:} Define an algorithmic process for unsupervised or semi-supervised learning, and run the algorithm on your own data, process the clusters and calculate the values for measurement of internal and external validity. The algorithm can be either the same as source hospital or different from it.
+
+    \item \textbf{Evaluate and Compare:} Compare local population statistics against the \texttt{population} block and \texttt{anchor\_value} constraints defined in \texttt{phenotype\_signature.features}. If operating in a distributed network, reconstruct the local covariance matrix and compare against the producer's \texttt{covariance\_matrix}. If all checks, evaluate the external and internal validity measures to confirm or discard a cluster based on its clinical relevance.
+\end{enumerate}
+
+\section{Software Implementations}
+
+\subsection{Python based JSON PhenoCard Conversion}
+The following Python scripts implement the \textit{Define--Validate--Share} pipeline:
+
+\begin{itemize}
+    \item \textbf{Template Generator (\texttt{create\_template.py}):} Generates an standardized Excel input file, the relevant information is filled in by a user who discovered an interesting cluster.
+    \item \textbf{Profile Builder (\texttt{profile\_builder.py}):} The script reads the Excel file and outputs a validated JSON card.
+\end{itemize}
+
+\subsection{Declarative UI Layout Engine and PhenoCard Viewer}
+\label{subsec:ui_layout_engine}
+
+To ensure complete decoupling between core data pipelines and visual representation, we use a declarative UI layout framework. The rendering layer is split into two primary components: a declarative configuration specification governed by a layout schema (\texttt{PhenoCard-UI.schema.json}) and a lightweight POC client-side runtime engine (\texttt{PhenoCard Viewer}) that accepts user input for a PhenoCard data instance and the layout schema to draw interactive HTML output.
+
+\subsubsection{The UI Layout Schema Specification}
+The presentation architecture is driven by a schema that defines a parameterized template tree that binds structural UI blocks to underlying JSON-LD data points via JSONPath evaluation. The layout schema contains four structural sections:
+
+\begin{enumerate}
+    \item \textbf{Runtime Parameters:} Explicit constraints required by the engine prior to evaluation (e.g., \texttt{profile\_id}). The engine enforces validation of these parameters before initializing data path evaluation.
+    \item \textbf{Data Contexts and Bound Data Resolution:} To eliminate repetitive syntax, the schema maps symbolic context names to explicit JSONPath expressions. The environment establishes four core scopes:
+    \begin{itemize}
+        \item \texttt{@global}: Maps to global metadata blocks (\texttt{\$.global\_metadata}).
+        \item \texttt{@dataset}: Maps to study-wide population characteristics (\texttt{\$.dataset\_metadata}).
+        \item \texttt{@target\_profile}: Resolves directly to the clinical profile indeces:\\
+        (\texttt{\$.profiles['\$\{profile\_id\}']}).
+        \item \texttt{@cluster\_list}: Evaluates object properties across multi-cluster collections using dictionary wildcards (\texttt{\$.profiles['\$\{profile\_id\}'].clusters.*}).
+    \end{itemize}
+    \item \textbf{Runtime Computed Fields:} The framework facilitates runtime statistical aggregation over context lists. These are declared natively in the schema configuration via target expressions:
+    \begin{itemize}
+        \item \texttt{sum}: Accumulates raw counts across sub-structures (e.g., total profile evaluation cohort sizes).
+        \item \texttt{weighted\_mean}: Evaluates normalized metrics across clustered weights, such as deriving profile-wide weighted Silhouette indices by multiplying cluster scores against population sizes.
+        \item \texttt{group\_sum}: Groups and collapses class-wise categorical metrics across split-cluster arrays.
+    \end{itemize}
+    \item \textbf{Asset Resolution Rules:} Declares binary external elements (e.g., static network diagrams, cluster-specific visual clusters) matching naming patterns such as\\
+    \texttt{cluster\_viz\_\$\{cluster\_id\}.\{ext\}}.\\
+    This enables dynamic rendering mapping during collection loops.
+\end{enumerate}
+
+\subsubsection{Layout View Component Hierarchy}
+The \texttt{layout} field specifies a nested component graph. The framework utilizes a series of standardized layout primitives to model the presentation space:
+\begin{itemize}
+    \item \texttt{Document} / \texttt{PageHeader}: Structural roots governing identity blocks, titles, and clinical source attribution bindings.
+    \item \texttt{Section} / \texttt{LayoutRow} / \texttt{LayoutColumn}: Multi-column flex grids enabling scalable viewport responses across varied screen topologies.
+    \item \texttt{MetadataBlock} / \texttt{MetricGroup}: Atomic containers that isolate key-value attribute tags (e.g., missing data strategies, base model thresholds) and highlight tabular scoring dimensions.
+    \item \texttt{DataGrid}: A structured data matrices controller designed to project composite array feeds (such as baseline demographics or clinical Table~1 equivalents) into rows and cells.
+    \item \texttt{Iterator}: A logical looping driver that clones interior layout structures across resolved context collections (e.g., rendering structural blocks for each cluster assigned to a profile index).
+\end{itemize}
+
+\subsubsection{Reference Client Runtime Architecture: The PhenoCard Viewer}
+Visual compilation is handled entirely inside a client-side HTML5/JavaScript application layer (\texttt{PhenoCard Viewer}). Built without external runtime frameworks, the app utilizes low-level virtual DOM patterns via a lightweight micro-element creator ($\mathcal{H}$-factory function).
+
+\paragraph{Interactive Capabilities:} The viewer provides an interactive dropzone interface supporting federated, zero-server data ingestion through client-side file pickers. Once standard JSON data arrays and associated relational files (such as graphical representations) are parsed in-memory, the engine exposes a responsive, tabbed control navigation system for multi-profile clinical reviews. Network elements utilize custom bindings integrated through client visualization libraries (\texttt{Graphology} and \texttt{Sigma.js}) to coordinate localized cluster-highlighting interactions.
+
+\paragraph{Parametric Boxplot Generation:} Rather than calling server-side image render pipelines, the engine interprets numeric data blocks at runtime to build mathematical vector graphics on-the-fly. The custom vector assembly engine constructs SVG-wrapped parametric box-plots visualizing distribution properties directly in line with text blocks. The vector dynamically computes and overlays bounding scales, projecting standard deviation and mean distributions across visual bounds:
+\begin{equation}
+   X_{\text{scaled}} = \Delta_{\text{pad}} + \left( \frac{V - V_{\text{min}}}{V_{\text{max}} - V_{\text{min}}} \right) \times W_{\text{drawable}}
+\end{equation}
+
+\begin{itemize}
+    \item \textbf{Whiskers:} Visual lines representing the outer clinical baseline bounds, positioned at $\mu \pm 2\sigma$.
+    \item \textbf{Interquartile Analog Box:} Encapsulating $\mu \pm 1\sigma$.
+    \item \textbf{Mean Indicator:} Statistical average ($\mu$).
+\end{itemize}
+
+\paragraph{Document Printing Synthesis:} Static document distribution capability is preserved using targeted CSS Media Queries (\texttt{@media print}). When print triggers execute, the DOM strips application headers, navigational components, file controls, and interactive buttons from the layout tree. Responsive layout rows are normalized to static vertical paths, and specialized CSS rule bindings (\texttt{break-inside: avoid;}) are applied globally to baseline matrix containers, SVG graphs, and metadata blocks. This isolates blocks from cross-page visual fragmentation, outputting structural PDF summary records via standard browser printing engines.
+
+\section{Clinical Application}
+
+To illustrate the practical flow of the Cluster Phenotype Card, consider the following scenario between two federated research nodes.
+
+\textbf{1. The Discovery (Hospital A):} A researcher at Hospital A runs a clustering algorithm on a cohort of Type\~2 Diabetes patients.
+The algorithm identifies a high-risk sub-group characterized by HbA1c and elevated BMI. Using the software toolkit, Hospital A generates a \texttt{profile.json} card. The pipeline maps features to concept IDs, documents the preprocessing strategy, and computes the SHA-256 integrity hash.\\
+
+\textbf{2. The Transfer:} Hospital A shares the \texttt{profile.json} (containing no patient-level data) with Hospital B.\\
+
+\textbf{3. The Validation (Hospital B):} Hospital B receives the card and runs it through their local algorithm for unsupervised clustering.
+The script applies Hospital A's preprocessing rules to Hospital B's local dataset and also has the information for patients matching the dataset used for generating the clusters. The script produces a measurement report: \textit{MCC : 0.560, Silhouette Score: 0.38.''}. Which can point to a stable cluster.\\
+
+\textbf{4. Generalization:} If several hospitals can find the same cluster with the same feature subset with different datasets and algorithms, the cluster is transport-stable and probably a signal for rule-based phenotype definition. The probabilistic boundaries of the cluster can be safely converted to regular phenotype definitions after generalization.
+
+\newpage
+\section{Appendix: JSON Schema}
+
+The following tree shows the key/value structure of a valid Profile Card.
+All top-level blocks are objects (dictionaries). \texttt{profiles} and \texttt{clusters} are dictionaries keyed by their respective ID strings, not arrays.
+
+\begin{verbatim}
+PhenoCard (JSON-LD)
+├─ @context    
+│  ├─ dcat:    "https://www.w3.org/ns/dcat#"
+│  ├─ concept: "https://athena.ohdsi.org/concept/"
+│  ├─ MINIMAR: "https://www.equator-network.org/..."
+│  └─ pav:     "http://purl.org/pav/"
+│
+├─ global_metadata                 % L0: RO-CRATE bindings
+│  ├─ author                              [required]
+│  │  ├─ name:        string
+│  │  ├─ affiliation: string
+│  │  └─ orcid:       string | null
+│  ├─ license:          string (URI)      [required]
+│  ├─ doi:              string | null
+│  └─ semantic_summary: string            [Metadata for LLM]
+│
+├─ dataset_metadata                % L1: Source dataset
+│  ├─ dataset_title:               string  [required]
+│  ├─ total_study_n:               integer [required, min: 32]
+│  ├─ dqa_reference:               string (uri-reference)
+│  ├─ aggregate_profile_reference: string (uri-reference)
+│  └─ inline_aggregate_profile:    array<AggregateStatistic>
+│     (one of aggregate_profile_reference or
+│      inline_aggregate_profile is required)
+│
+├─ provenance                      % L1: Run fingerprint
+│  ├─ execution_start_time: string (date-time) [required]
+│  ├─ execution_end_time:   string (date-time) [required]
+│  ├─ pipeline_run_id:      string
+│  ├─ git_commit:           string (SHA-1, 7-40 hex chars)
+│  └─ data_version_hash:    string (SHA-256, 64 hex chars)
+│
+└─ profiles                        % L2: dict<profile_id, Profile>
+   └─ "<profile_id>": Profile
+      ├─ profile_id:            string          [required]
+      ├─ base_cohort_id:        integer | null
+      ├─ base_cohort_reference: string          [required]
+      ├─ clustering_outcome:    enum            [required]
+      ├─ avg_condition_occurrence_days: number | null
+      ├─ clinician_notes:       string          [required]
+      │
+      ├─ algorithmic_config                     [required]
+      │  ├─ method_family:          string      [required]
+      │  ├─ base_model:             string
+      │  ├─ confidence_threshold:   number [0,1]
+      │  ├─ implementation_version: string
+      │  ├─ random_seed:            integer | null
+      │  ├─ minimar_reference:      string | null
+      │  └─ data_preprocessing               [required]
+      │     ├─ missing_data_strategy: enum   [required]
+      │     └─ scaling_method:        enum   [required]
+      │
+      ├─ label_relationship                     [required]
+      │  ├─ assigned_class:      string         [required]
+      │  └─ assigned_concept_id: integer (min: 1)
+      │
+      └─ clusters              % L3: dict<cluster_id, Cluster>
+         └─ "<cluster_id>": Cluster
+            ├─ cluster_id:         string       [required]
+            │
+            ├─ phenotype_signature              [required]
+            │  ├─ integrity_hash:       string (SHA-256)
+            │  ├─ normalization_basis:  enum
+            │  └─ features: array<VariableConstraint>
+            │     └─ VariableConstraint
+            │        ├─ variable_name:       string  [required]
+            │        ├─ concept_id:          int|null[required]
+            │        ├─ unit_concept_id:     int|null
+            │        ├─ anchor_operator:     enum
+            │        ├─ anchor_value:        (type per operator)
+            │        ├─ dist_mean:           number
+            │        ├─ dist_sd:             number
+            │        └─ covariate_importance:number
+            │
+            ├─ covariance_matrix: array<CovariancePair>
+            │
+            ├─ population                       [required]
+            │  ├─ n_count:          integer (min: 10) [required]
+            │  ├─ profile_fraction: number [0,1]      [required]
+            │  └─ study_fraction:   number [0,1]      [required]
+            │
+            └─ quality_metrics                  [required]
+               └─ metrics: array<Metric> (minItems: 1)
+                  └─ Metric
+                     ├─ name:        string      [required]
+                     ├─ value:       number      [required]
+                     └─ metric_type: enum
+                        % internal_cluster
+                        % external_confusion
+                        % external_mcc
+                        % class_distribution
+\end{verbatim}
+
+
+\end{document}
