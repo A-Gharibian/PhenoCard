@@ -127,4 +127,4 @@ This schema normalizes clinical modeling output into the following open standard
 
 ## License
 
-Distributed under the CC-BY-NC-SA [metadata usage terms specified in the root execution layer](https://creativecommons.org/licenses/by-nc-sa/4.0/) (`global_metadata.license`).
+Distributed under the CC-BY-NC-SA (https://creativecommons.org/licenses/by-nc-sa/4.0/).
