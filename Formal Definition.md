@@ -1,15 +1,16 @@
-# Formal Schema Definition
-## Clinical Cluster Analysis — `federated-profile-card/2026.3.0`
+# Formal Definition
+## Cluster PhenoCard
 
-**URI:** `https://lab.org/schemas/federated-profile-card/2026.3.0`  
+**URI:** `https://lab.org/schemas/federated-profile-card/2026.3.0](https://gitlab.vsb.cz/gha0011/phenocard/-/blob/main/formal_definition.md?ref_type=heads`
 **JSON Schema Draft:** 2020-12  
-**Status:** Active
+**Status:** Under Development
 
 ---
 
 ## 1. Overview
 
-This schema defines a container for hierarchical cluster profiles generated from a single federated clinical dataset. It is designed to be interoperable with OMOP CDM, DCAT, PAV, and MINIMAR standards, and is intended to be packaged as part of an RO-Crate.
+This schema defines a container for hierarchical cluster profiles generated from a single clinical dataset. 
+It is designed to be interoperable and is intended to be packaged as part of an RO-Crate.
 
 The document is structured in four layers:
 
@@ -29,7 +30,7 @@ The document is structured in four layers:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `@context` | `Context` | ✅ | JSON-LD semantic context |
-| `global_metadata` | `GlobalMetadata` | ✅ | Authorship, license, narrative |
+| `global_metadata` | `GlobalMetadata` | ✅ | Authorship, license, semantic summary |
 | `dataset_metadata` | `DatasetMetadata` | ✅ | Source dataset descriptors |
 | `provenance` | `Provenance` | ✅ | Computational run fingerprint |
 | `profiles` | `map<string, Profile>` | ✅ | Dictionary of profiles, keyed by `profile_id`. Min 1 entry. |
@@ -133,7 +134,7 @@ A clinical cohort profile representing a labeled subpopulation and its clusterin
 | `label_relationship` | `LabelRelationship` | ✅ | Clinical label and concept mapping |
 | `clustering_outcome` | `ClusteringOutcome` | ✅ | Qualitative assessment of cluster quality |
 | `clusters` | `map<string, Cluster>` | ✅ | Dictionary of clusters, keyed by `cluster_id`. Min 1 entry. |
-| `avg_condition_occurrence_days` | `number \| null` | ❌ | Average days of condition occurrence for this profile's cohort |
+| `avg_condition_occurrence_days` | `number \| null` | ✅ | Average days of condition occurrence for this profile's cohort |
 | `clinician_notes` | `string` | ✅ | Clinician evaluation for the profile. Max 1024 characters. Downstream renderers must apply XSS sanitization before injecting into the DOM. |
 
 #### 3.6.1 `ClusteringOutcome` Enum
@@ -198,7 +199,7 @@ The set of clinical variables and constraints that characterise a cluster.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `features` | `array<VariableConstraint>` (minItems: 1, uniqueItems) | ✅ | Defining feature rules |
-| `integrity_hash` | `string` | ❌ | SHA-256 integrity hash of the feature set. Pattern: `^[a-f0-9]{64}$`. See specification for input canonicalisation. |
+| `integrity_hash` | `string` | ❌ | SHA-256 integrity hash of the feature set. Pattern: `^[a-f0-9]{16}$`. See specification for input canonicalisation. |
 | `normalization_basis` | `"raw" \| "z_score" \| "min_max" \| "robust"` | ❌ | Scaling applied to feature anchor values and distributions. Default: `raw` |
 
 ---
@@ -211,10 +212,10 @@ A single clinical variable with its inclusion criteria and optional distribution
 | `variable_name` | `string` (minLength: 1) | ✅ | Human-readable variable name |
 | `concept_id` | `integer \| null` | ✅ | Concept identifier from the node's reference vocabulary |
 | `unit_concept_id` | `integer \| null` | ❌ | Concept identifier for the unit of measurement, e.g. UCUM or OMOP unit concept |
-| `anchor_operator` | `AnchorOperator` | ❌ | Inclusion comparison operator |
-| `anchor_value` | `number \| string \| array \| boolean \| null` | ❌ | Threshold value(s). Type constrained by operator — see below. |
-| `dist_mean` | `number` | ❌ | Cluster centre for this variable |
-| `dist_sd` | `number` (min: 0) | ❌ | Cluster spread for this variable |
+| `anchor_operator` | `AnchorOperator` | ✅ | Inclusion comparison operator |
+| `anchor_value` | `number \| string \| array \| boolean \| null` | ✅ | Threshold value(s). Type constrained by operator — see below. |
+| `dist_mean` | `number` | ✅ | Cluster centre for this variable |
+| `dist_sd` | `number` (min: 0) | ✅ | Cluster spread for this variable |
 | `covariate_importance` | `number` | ❌ | Feature importance score from the upstream model |
 
 #### 3.11.1 `AnchorOperator` — Conditional Constraints
@@ -266,7 +267,7 @@ A collection of named validation metrics for the cluster.
 |-------|------|----------|-------------|
 | `name` | `string` | ✅ | Metric name, e.g. `silhouette_score`, `True_Positives` |
 | `value` | `number` | ✅ | Metric value |
-| `metric_type` | `MetricType` | ❌ | Classification of the metric |
+| `metric_type` | `MetricType` | ✅ | Classification of the metric |
 
 #### 3.14.2 `MetricType` Enum
 
