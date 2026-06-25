@@ -1,12 +1,14 @@
 # Cluster Profile PhenoCard Schema
 
-This repository contains the formal JSON Schema definition for the **Clinical Cluster Analysis Profile Card** (`federated-profile-card/2026.3.0`).
+This repository contains the formal JSON Schema definition for the **Clinical Cluster Profile Card**.
 
-This schema defines a standardized container for hierarchical cluster profiles generated from federated clinical datasets. It bridges the gap between raw clustering outputs and downstream biomedical data tools by enforcing interoperability with **OMOP CDM, DCAT, PAV, and MINIMAR** standards. It is intended to be packaged alongside clinical datasets as part of an **RO-Crate**.
+This schema defines a standardized container for hierarchical cluster profiles generated from clinical datasets. 
+It bridges the gap between raw clustering outputs and downstream biomedical data tools by enforcing interoperability.
+It is intended to be packaged as part of an **RO-Crate**.
 
 ## Repository Structure
 
-* `schema.json` — The core JSON Schema definition (Draft 2020-12).
+* `schema.json` — The JSON Schema definition.
 * `examples/` — Valid and invalid payload examples for testing.
 * `README.md` — This file.
 
@@ -14,7 +16,7 @@ This schema defines a standardized container for hierarchical cluster profiles g
 
 ## Data Architecture
 
-The schema enforces a strict 4-layer structure to capture everything from semantic context down to individual feature constraints:
+The schema enforces a strict 4-layer structure to capture everything from semantic context to individual feature constraints:
 
 | Layer | Key | Purpose |
 | --- | --- | --- |
@@ -22,34 +24,6 @@ The schema enforces a strict 4-layer structure to capture everything from semant
 | **L1** | `global_metadata`, `dataset_metadata`, `provenance` | Study-level descriptors & reproducibility tracking |
 | **L2** | `profiles` | Clinical cohort profiles (keyed by `profile_id`) |
 | **L3** | `clusters` | Statistical and clinical sub-populations within each profile |
-
----
-
-## Quick Start & Validation
-
-To validate your generated cluster profile JSON files against this schema, you can use any standard JSON Schema validator.
-
-### Python Example
-
-```python
-import json
-from jsonschema import validate, ValidationError
-
-# Load the schema
-with open("schema.json", "r") as f:
-    schema = json.load(f)
-
-# Load your profile card
-with open("my_cluster_profile.json", "r") as f:
-    instance = json.load(f)
-
-try:
-    validate(instance=instance, schema=schema)
-    print("Validation successful! File matches federated-profile-card/2026.3.0.")
-except ValidationError as e:
-    print(f"Validation failed: {e.message}")
-
-```
 
 ---
 
