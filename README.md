@@ -6,17 +6,9 @@ This schema defines a standardized container for hierarchical cluster profiles g
 It bridges the gap between raw clustering outputs and downstream biomedical data tools by enforcing interoperability.
 It is intended to be packaged as part of an **RO-Crate**.
 
-## Repository Structure
+## Data Validation
 
-* `schema.json` — The JSON Schema definition.
-* `examples/` — Valid and invalid payload examples for testing.
-* `README.md` — This file.
-
----
-
-## Data Architecture
-
-The schema enforces a strict 4-layer structure to capture everything from semantic context to individual feature constraints:
+The schema enforces a 4-layer structure to capture everything from semantic context to individual feature constraints:
 
 | Layer | Key | Purpose |
 | --- | --- | --- |
