@@ -1,7 +1,7 @@
 # Formal Definition
 ## Cluster PhenoCard
 
-**URI:** `https://lab.org/schemas/federated-profile-card/2026.3.0](https://gitlab.vsb.cz/gha0011/phenocard/-/blob/main/formal_definition.md?ref_type=heads`
+**URI:** `https://gitlab.vsb.cz/gha0011/phenocard/-/blob/main/formal_definition.md?ref_type=heads`
 **JSON Schema Draft:** 2020-12  
 **Status:** Under Development
 
